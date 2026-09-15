@@ -82,6 +82,24 @@ app.post("/api/pancake/orders/webhook", async (req, res) => {
 
   console.log(JSON.stringify(logEntry));
 
+  // [INSPECTION_LOG] Structured webhook payload for auditing (PII redacted)
+  const auditLog = {
+    timestamp: new Date().toISOString(),
+    source: "pancake_webhook",
+    account,
+    order_id: orderId,
+    order_status: payload.status ?? payload.order_status ?? "unknown",
+    order_amount: payload.total ?? payload.amount ?? payload.net_total ?? 0,
+    order_currency: payload.currency ?? "unknown",
+    event_type: eventType,
+    event_id: payload.event_id ?? null,
+    timestamp_from_pancake: payload.timestamp ?? payload.created_at ?? null,
+    payload_keys: Object.keys(payload).sort(),
+    customer_id_field: payload.customer_id ?? payload.customer ?? null,
+    items_count: Array.isArray(payload.items) ? payload.items.length : 0
+  };
+  console.log("[WEBHOOK_PAYLOAD_AUDIT]", JSON.stringify(auditLog, null, 2));
+
   // Forward to ERP asynchronously
   forwardToERP(account, payload).catch((err) => {
     console.error("Failed to forward webhook to ERP:", err);
